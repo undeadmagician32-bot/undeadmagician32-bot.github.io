@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>하루 세 칸 — 정하고·하고·적는 리추얼 도우미</title>
+<meta name="description" content="기분이 가라앉아 하루를 꾸리기 힘든 사람이 논문에서 효과가 확인된 '정하고·하고·적는' 순서(행동활성화)로 작은 일 세 개를 고르고 기록하도록 돕는 앱">
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#5d5b55;--line:#e3e0d8;--card:#ffffff;--accent:#1f5f8b;--accentfg:#ffffff;--tag:#e8f1f7;--tagfg:#1f5f8b;--good:#2f7a3e;--goodbg:#e6f3e8;--warn:#9a5b00;--warnbg:#fbf0dc;--bad:#a33a2c;--badbg:#f8e4e0}
+@media (prefers-color-scheme:dark){:root{--bg:#151614;--fg:#ecebe6;--muted:#a9a79f;--line:#2e2f2b;--card:#1d1e1b;--accent:#7fb7dd;--accentfg:#0f1a22;--tag:#20313d;--tagfg:#9fd0f0;--good:#8fd19c;--goodbg:#1c2e20;--warn:#f0c070;--warnbg:#33291a;--bad:#f09a8c;--badbg:#3a221e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.7 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;word-break:keep-all}
+main{max-width:760px;margin:0 auto;padding:0 16px 64px}
+a{color:var(--accent)}
+header{padding:32px 0 20px;border-bottom:1px solid var(--line)}
+.paper{font-size:14px;color:var(--muted);margin:0 0 6px}
+.paper b{color:var(--fg)}
+h1{font-size:32px;line-height:1.25;margin:0 0 12px}
+.who{font-size:19px;line-height:1.6;font-weight:600;margin:0 0 16px;padding:14px 16px;border-left:4px solid var(--accent);background:var(--card);border-radius:0 10px 10px 0}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0;padding:0;list-style:none}
+.steps li{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px}
+.steps b{display:block;font-size:15px}
+@media (max-width:560px){.steps{grid-template-columns:1fr}h1{font-size:26px}.who{font-size:17px}}
+nav.tabs{display:flex;gap:6px;margin:20px 0 0;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:2;border-bottom:1px solid var(--line)}
+nav.tabs button{flex:1;padding:10px 6px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;font-weight:600;cursor:pointer;min-height:44px}
+nav.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accentfg);border-color:var(--accent)}
+section.panel{padding:24px 0}
+section.panel[hidden]{display:none}
+h2{font-size:22px;margin:0 0 6px}
+h3{font-size:17px;margin:24px 0 8px}
+.lead{color:var(--muted);margin:0 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:0 0 12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;padding:7px 12px;font:inherit;font-size:14px;cursor:pointer;min-height:38px}
+.chip:hover{border-color:var(--accent)}
+.chip.on{background:var(--tag);color:var(--tagfg);border-color:var(--accent);font-weight:600}
+.chip.best::after{content:" ★";color:var(--warn)}
+.cat{font-size:12px;color:var(--muted);display:block;margin:12px 0 6px;font-weight:600}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input[type=text],select{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);min-height:42px}
+input[type=text]{flex:1;min-width:160px;max-width:100%}
+#ctlIn{width:100%;max-width:100%}
+#gIn,#nIn{width:100%}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.btn{font:inherit;font-weight:600;padding:10px 16px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:var(--accentfg);cursor:pointer;min-height:44px}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:6px 10px;min-height:34px;font-size:14px}
+.msg{font-size:14px;margin:8px 0 0;min-height:1.2em}
+.msg.err{color:var(--bad)}
+.msg.ok{color:var(--good)}
+ol.plan{padding:0;margin:0;list-style:none;counter-reset:p}
+ol.plan li{counter-increment:p;display:flex;gap:8px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line);flex-wrap:wrap}
+ol.plan li::before{content:counter(p);font-weight:700;color:var(--accent);width:1.4em}
+ol.plan li .name{flex:1;min-width:140px;font-weight:600}
+.slider{display:grid;grid-template-columns:7em 1fr 2.2em;gap:8px;align-items:center;font-size:14px}
+.slider output{font-weight:700;text-align:right}
+.log-item{border-top:1px solid var(--line);padding:12px 0}
+.log-item:first-child{border-top:0;padding-top:0}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.seg button{flex:1;min-width:84px}
+.badge{display:inline-block;font-size:12px;padding:0 8px;border-radius:999px;background:var(--tag);color:var(--tagfg);font-weight:600}
+.banner{background:var(--warnbg);color:var(--warn);border-radius:10px;padding:10px 12px;font-size:14px;margin:0 0 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.verdict{border-radius:12px;padding:14px 16px;margin:12px 0}
+.verdict.good{background:var(--goodbg);color:var(--good)}
+.verdict.warn{background:var(--warnbg);color:var(--warn)}
+.verdict.bad{background:var(--badbg);color:var(--bad)}
+.verdict b{font-size:18px;display:block;margin-bottom:4px}
+.verdict ul{margin:6px 0 0;padding-left:18px;color:var(--fg)}
+.bars{margin:8px 0}
+.bar{display:grid;grid-template-columns:9em 1fr 3.4em;gap:8px;align-items:center;font-size:14px;margin:6px 0}
+.bar .track{height:14px;background:var(--line);border-radius:7px;position:relative;overflow:hidden}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:7px}
+.bar .fill.you{background:var(--warn)}
+.bar span:last-child{text-align:right;font-weight:700}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left;vertical-align:top}
+.table-wrap{overflow-x:auto}
+small,.note{color:var(--muted);font-size:13px}
+footer{border-top:1px solid var(--line);padding:20px 0 0;font-size:13px;color:var(--muted)}
+.timer{font-variant-numeric:tabular-nums;font-weight:700}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <p class="paper">논문을 쓴 사람이 만든 앱 · 근거 논문: <b>「리추얼형 자기관리 개입은 우울 증상을 줄이는가 — 대조군 종류에 따른 효과크기 차이: 성인 우울 무작위대조시험 공개 데이터 메타분석」</b> (양재훈, 2026, <a href="paper-10.pdf">PDF</a>)</p>
+  <h1>하루 세 칸</h1>
+  <p class="who" id="who">이 앱은 기분이 가라앉아 하루를 꾸리기 힘든 사람이, 논문에서 평소 치료보다 우울 증상을 더 줄인 것으로 나온 '정하고 → 하고 → 적는' 순서(행동활성화)로 오늘 할 작은 일 세 개를 고르고 기록하도록 돕습니다.</p>
+  <ol class="steps" aria-label="이 앱에서 할 일 세 가지">
+    <li><b>① 정하기</b>오늘 할 작은 활동을 세 개까지 고릅니다.</li>
+    <li><b>② 하고 적기</b>했는지, 성취감·즐거움·기분을 적고 지난 기록을 돌아봅니다.</li>
+    <li><b>③ 숫자 따져 보기</b>광고·글에 나온 효과 숫자를 논문 결과와 견줘 봅니다.</li>
+  </ol>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" id="t1" aria-controls="p1" aria-selected="true">① 정하기</button>
+  <button role="tab" id="t2" aria-controls="p2" aria-selected="false">② 하고 적기</button>
+  <button role="tab" id="t3" aria-controls="p3" aria-selected="false">③ 숫자 따져 보기</button>
+</nav>
+
+<!-- ① 정하기 -->
+<section class="panel" id="p1" role="tabpanel" aria-labelledby="t1">
+  <div id="exampleBanner1"></div>
+  <h2>① 오늘 할 작은 활동 세 개 정하기</h2>
+  <p class="lead">행동활성화는 기분이 나아지기를 기다리지 않고, 작은 활동을 먼저 정해 해 보는 방법입니다. 5–15분이면 끝나는 것으로 고르세요. 즐거움·성취·사람·몸·마음챙김에서 고루 고르면 좋습니다. <span class="badge">★ = 내 기록에서 기분이 가장 오른 활동</span></p>
+  <div class="card">
+    <div id="presets"></div>
+    <span class="cat">직접 적기 (30자 이내)</span>
+    <div class="row">
+      <input type="text" id="custom" maxlength="60" placeholder="예: 창문 열고 환기하기" aria-label="직접 적을 활동">
+      <button class="btn small" id="addCustom">넣기</button>
+    </div>
+    <p class="msg" id="planMsg" role="status"></p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">오늘의 세 칸 <span class="note" id="planDate"></span></h3>
+    <ol class="plan" id="planList"></ol>
+    <p class="note" id="planEmpty">아직 고른 활동이 없습니다. 위에서 눌러 고르세요.</p>
+    <h3>지금 기분</h3>
+    <div class="slider"><label for="moodBefore">지금 기분 (0–10)</label><input type="range" id="moodBefore" min="0" max="10" step="1" value="5"><output id="moodBeforeOut">5</output></div>
+    <p class="note">0 = 아주 가라앉음, 10 = 아주 좋음. 활동을 한 뒤의 기분과 견주는 데 씁니다.</p>
+    <div class="row" style="margin-top:10px"><button class="btn" id="toLog">정했어요 → ② 하고 적기</button></div>
+  </div>
+</section>
+
+<!-- ② 하고 적기 -->
+<section class="panel" id="p2" role="tabpanel" aria-labelledby="t2" hidden>
+  <div id="exampleBanner2"></div>
+  <h2>② 하고 나서 적기</h2>
+  <p class="lead">활동마다 했는지와 성취감·즐거움을 적습니다. '못 했다'도 그대로 적으세요. 행동활성화에서는 기록이 다음 계획의 재료가 됩니다.</p>
+  <div class="card" id="logCard"></div>
+  <h3>지난 기록 돌아보기</h3>
+  <div class="card" id="review"></div>
+  <div class="row"><button class="btn ghost small" id="loadExample">예시 기록 7일 넣어 보기</button><button class="btn ghost small" id="clearAll">내 기록 모두 지우기</button></div>
+  <p class="msg" id="dataMsg" role="status"></p>
+</section>
+
+<!-- ③ 숫자 따져 보기 -->
+<section class="panel" id="p3" role="tabpanel" aria-labelledby="t3" hidden>
+  <h2>③ 효과 숫자 따져 보기</h2>
+  <p class="lead">"명상 8주면 우울이 크게 준다" 같은 글을 보면 숫자 세 개를 넣어 보세요. 논문이 92편 무작위대조시험(97개 비교)에서 얻은 결과와 견줘, 기대를 어느 정도 해도 되는지 알려 줍니다.</p>
+  <div class="card">
+    <span class="cat">빠르게 해 보기: 지어낸 예시 글</span>
+    <div class="chips" id="calcExamples"></div>
+    <h3>1. 보고된 효과크기 (g 또는 d)</h3>
+    <input type="text" id="gIn" inputmode="decimal" placeholder="예: 0.8" aria-label="효과크기">
+    <h3>2. 무엇과 비교했나</h3>
+    <select id="ctlIn" aria-label="대조군 종류">
+      <option value="">고르세요</option>
+      <option value="cau">평소 치료 (원래 받던 진료·상담을 그대로 받은 집단)</option>
+      <option value="wl">대기자 (아무것도 안 하고 기다린 집단)</option>
+      <option value="other">기타 (안내문만 받음 등)</option>
+      <option value="unknown">모르겠다 / 글에 안 나온다</option>
+    </select>
+    <h3>3. 참여자 수 (두 집단 합, 모르면 비워 두기)</h3>
+    <input type="text" id="nIn" inputmode="numeric" placeholder="예: 40" aria-label="참여자 수">
+    <div class="row" style="margin-top:14px"><button class="btn" id="calc">따져 보기</button></div>
+    <p class="msg err" id="calcMsg" role="alert"></p>
+  </div>
+  <div id="calcOut" aria-live="polite"></div>
+  <details class="card">
+    <summary><b>이 계산이 쓰는 논문 결과</b></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>비교 대상</th><th>합산 g [95% CI]</th><th>비교 수</th></tr></thead>
+      <tbody>
+        <tr><td>평소 치료</td><td>0.68 [0.54, 0.81]</td><td>42</td></tr>
+        <tr><td>대기자</td><td>1.04 [0.83, 1.24]</td><td>35</td></tr>
+        <tr><td>기타 비활성</td><td>0.61 [0.47, 0.76]</td><td>20</td></tr>
+        <tr><td>대기자 − 평소 치료</td><td>0.36 [0.12, 0.60]</td><td>—</td></tr>
+        <tr><td>같은 차이, g &gt; 2 극단값 6개 제외</td><td>0.11 [−0.07, 0.29]</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">극단값(g &gt; 2) 6개 중 5개가 대기자 비교였습니다. 중앙 참여자 수는 대기자 시험 약 38명, 평소 치료 시험 60명이었고, 작은 연구일수록 효과가 크게 나오는 경향이 있었습니다(Egger 검정 p &lt; 0.001). '방법을 쓴 쪽이 더 나을 확률'은 g를 공통언어 효과크기 Φ(g/√2)로 바꾼 값입니다. 출처: 논문 표 1·표 2, 3.4절.</p>
+  </details>
+</section>
+
+<footer>
+  <p><b>알아 둘 것.</b> 이 앱은 치료를 대신하지 않습니다. 논문 결과는 성인 우울에 대한 것이며, ADHD에 대해서는 이 논문으로 말할 수 없습니다. 많이 힘들면 전문가와 상의하고, 위기 상황이면 자살예방상담전화 109로 연락하세요.</p>
+  <p>기록은 이 브라우저 안에만 저장되고 어디에도 보내지 않습니다. 로그인·서버·AI 키를 쓰지 않습니다. 예시 기록과 예시 글은 모두 지어낸 것입니다. · 만든 사람: 양재훈 · <a href="https://undeadmagician32-bot.github.io/">자기소개 사이트로</a></p>
+</footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- 논문 결과 (표 1·표 2·3.4절) ----------
+  var PAPER = {
+    cau:   { label: "평소 치료", g: 0.676, lo: 0.544, hi: 0.807, k: 42 },
+    wl:    { label: "대기자",    g: 1.035, lo: 0.833, hi: 1.237, k: 35 },
+    other: { label: "기타 비활성", g: 0.610, lo: 0.465, hi: 0.755, k: 20 },
+    diffWlCau: 0.359, diffNoOutlier: 0.109,
+    outlierG: 2.0, smallN: 60
+  };
+
+  var PRESETS = [
+    { cat: "즐거움", items: ["좋아하는 노래 세 곡 듣기", "밖에서 10분 걷기", "따뜻한 차 한 잔 천천히 마시기"] },
+    { cat: "성취", items: ["책상 위 한 칸 정리하기", "미뤄 둔 메시지 하나 답하기", "과제 카드 하나 끝내기"] },
+    { cat: "사람", items: ["고마운 사람에게 한 줄 보내기", "동료에게 장점 하나 말하기"] },
+    { cat: "몸", items: ["물 한 컵 마시고 5분 스트레칭", "정한 시간에 잠자리에 들기"] },
+    { cat: "마음챙김", items: ["호흡 5분"] }
+  ];
+  var MAX_PLAN = 3, MAX_LEN = 30, KEY = "haru3.v1";
+
+  // ---------- 저장 (실패해도 앱은 돈다) ----------
+  var memoryOnly = false;
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return { days: {} };
+      var s = JSON.parse(raw);
+      if (!s || typeof s !== "object" || typeof s.days !== "object" || s.days === null) throw new Error("bad");
+      return s;
+    } catch (e) {
+      try { localStorage.removeItem(KEY); } catch (e2) {}
+      return { days: {} };
+    }
+  }
+  function save() {
+    if (memoryOnly) return;
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch (e) { memoryOnly = true; say("dataMsg", "이 브라우저에서는 저장이 막혀 있어, 창을 닫으면 기록이 사라집니다.", "err"); }
+  }
+  var state = load();
+
+  // ---------- 도움 함수 ----------
+  function $(id) { return document.getElementById(id); }
+  function el(tag, attrs, text) {
+    var n = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      if (k === "class") n.className = attrs[k];
+      else if (k.indexOf("on") === 0) n.addEventListener(k.slice(2), attrs[k]);
+      else n.setAttribute(k, attrs[k]);
+    }
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function say(id, text, kind) { var m = $(id); m.textContent = text || ""; m.className = "msg" + (kind ? " " + kind : ""); }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function dateKey(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function todayKey() { return dateKey(new Date()); }
+  function clampInt(v, lo, hi, dflt) { if (v === null || v === undefined || v === "") return dflt; v = Number(v); if (!isFinite(v)) return dflt; v = Math.round(v); return Math.min(hi, Math.max(lo, v)); }
+  function cleanName(s) { return String(s == null ? "" : s).replace(/[\u0000-\u001f\u007f<>]/g, "").replace(/\s+/g, " ").trim(); }
+  function today() {
+    var k = todayKey();
+    var d = state.days[k];
+    if (!d || typeof d !== "object") d = state.days[k] = {};
+    if (!Array.isArray(d.plan)) d.plan = [];
+    if (!Array.isArray(d.log)) d.log = [];
+    return d;
+  }
+  // 표준정규 누적분포 (공통언어 효과크기용)
+  function phi(x) {
+    var t = 1 / (1 + 0.2316419 * Math.abs(x));
+    var d = 0.3989423 * Math.exp(-x * x / 2);
+    var p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    return x > 0 ? 1 - p : p;
+  }
+  function cles(g) { return Math.round(phi(g / Math.SQRT2) * 100); }
+  function hasExample() { for (var k in state.days) if (state.days[k] && state.days[k].example) return true; return false; }
+
+  // ---------- 탭 ----------
+  var tabs = ["t1", "t2", "t3"];
+  function show(i) {
+    tabs.forEach(function (t, j) {
+      $(t).setAttribute("aria-selected", j === i ? "true" : "false");
+      $("p" + (j + 1)).hidden = j !== i;
+    });
+    if (i === 0) renderPlan();
+    if (i === 1) { renderLog(); renderReview(); }
+    try { localStorage.setItem(KEY + ".tab", String(i)); } catch (e) {}
+  }
+  tabs.forEach(function (t, j) { $(t).addEventListener("click", function () { show(j); }); });
+
+  function renderBanners() {
+    ["exampleBanner1", "exampleBanner2"].forEach(function (id) {
+      var b = $(id); b.textContent = "";
+      if (!hasExample()) return;
+      var box = el("div", { class: "banner" });
+      box.appendChild(el("span", null, "지금 지어낸 예시 기록이 들어 있습니다."));
+      box.appendChild(el("button", { class: "btn ghost small", onclick: function () { removeExample(); } }, "예시 지우기"));
+      b.appendChild(box);
+    });
+  }
+
+  // ---------- ① 정하기 ----------
+  function bestActivities() {
+    var stats = activityStats();
+    return stats.filter(function (s) { return s.n >= 2 && s.moodGain > 0; }).slice(0, 3).map(function (s) { return s.name; });
+  }
+  function renderPlan() {
+    var d = today();
+    var best = bestActivities();
+    var chosen = d.plan.map(function (p) { return p.name; });
+    var box = $("presets"); box.textContent = "";
+    PRESETS.forEach(function (g) {
+      box.appendChild(el("span", { class: "cat" }, g.cat));
+      var chips = el("div", { class: "chips" });
+      g.items.forEach(function (name) {
+        var cls = "chip" + (chosen.indexOf(name) >= 0 ? " on" : "") + (best.indexOf(name) >= 0 ? " best" : "");
+        chips.appendChild(el("button", { class: cls, "aria-pressed": chosen.indexOf(name) >= 0 ? "true" : "false", onclick: function () { togglePlan(name, g.cat); } }, name));
+      });
+      box.appendChild(chips);
+    });
+    var list = $("planList"); list.textContent = "";
+    d.plan.forEach(function (p, i) {
+      var li = el("li");
+      li.appendChild(el("span", { class: "name" }, p.name));
+      li.appendChild(el("span", { class: "badge" }, p.cat));
+      var sel = el("select", { "aria-label": p.name + " 할 때" });
+      ["언제든", "아침", "점심", "오후", "저녁"].forEach(function (w) { var o = el("option", { value: w }, w); if (p.when === w) o.selected = true; sel.appendChild(o); });
+      sel.addEventListener("change", function () { p.when = sel.value; save(); });
+      li.appendChild(sel);
+      li.appendChild(el("button", { class: "btn ghost small", "aria-label": p.name + " 빼기", onclick: function () { d.plan.splice(i, 1); d.log.splice(i, 1); save(); renderPlan(); say("planMsg", ""); } }, "빼기"));
+      list.appendChild(li);
+    });
+    $("planEmpty").hidden = d.plan.length > 0;
+    $("planDate").textContent = todayKey();
+    var mb = clampInt(d.moodBefore, 0, 10, 5);
+    $("moodBefore").value = mb; $("moodBeforeOut").textContent = mb;
+    renderBanners();
+  }
+  function togglePlan(name, cat) {
+    var d = today();
+    var i = d.plan.map(function (p) { return p.name; }).indexOf(name);
+    if (i >= 0) { d.plan.splice(i, 1); d.log.splice(i, 1); save(); renderPlan(); say("planMsg", ""); return; }
+    addPlan(name, cat);
+  }
+  function addPlan(name, cat) {
+    var d = today();
+    name = cleanName(name);
+    if (!name) return say("planMsg", "활동 이름을 적어 주세요. 빈칸이나 기호만으로는 넣을 수 없습니다.", "err");
+    if (name.length > MAX_LEN) return say("planMsg", "30자 이내로 줄여 주세요. 작게 쪼갤수록 해내기 쉽습니다. (지금 " + name.length + "자)", "err");
+    if (d.plan.some(function (p) { return p.name === name; })) return say("planMsg", "'" + name + "'은(는) 이미 골랐습니다.", "err");
+    if (d.plan.length >= MAX_PLAN) return say("planMsg", "오늘은 세 칸까지만 정합니다. 하나를 빼고 넣어 주세요.", "err");
+    d.plan.push({ name: name, cat: cat || "직접", when: "언제든" });
+    save(); renderPlan();
+    say("planMsg", "'" + name + "'을(를) 넣었습니다. (" + d.plan.length + "/3)", "ok");
+  }
+  $("addCustom").addEventListener("click", function () { addPlan($("custom").value, "직접"); if ($("planMsg").className.indexOf("ok") >= 0) $("custom").value = ""; });
+  $("custom").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("addCustom").click(); } });
+  $("moodBefore").addEventListener("input", function () { var v = clampInt(this.value, 0, 10, 5); $("moodBeforeOut").textContent = v; today().moodBefore = v; save(); });
+  $("toLog").addEventListener("click", function () {
+    var d = today();
+    if (!d.plan.length) return say("planMsg", "먼저 활동을 하나 이상 골라 주세요.", "err");
+    if (d.moodBefore == null) { d.moodBefore = clampInt($("moodBefore").value, 0, 10, 5); save(); }
+    show(1); window.scrollTo(0, 0);
+  });
+
+  // ---------- ② 하고 적기 ----------
+  var timerId = null;
+  function renderLog() {
+    var d = today(), card = $("logCard"); card.textContent = "";
+    if (!d.plan.length) {
+      card.appendChild(el("p", { class: "note" }, "오늘 정한 활동이 없습니다. ① 정하기에서 먼저 골라 주세요."));
+      card.appendChild(el("button", { class: "btn small", onclick: function () { show(0); } }, "① 정하기로 가기"));
+      renderBanners(); return;
+    }
+    card.appendChild(el("p", { class: "note" }, todayKey() + " · 시작할 때 기분 " + clampInt(d.moodBefore, 0, 10, 5) + "/10"));
+    d.plan.forEach(function (p, i) {
+      var L = d.log[i] && typeof d.log[i] === "object" ? d.log[i] : (d.log[i] = { done: null, ach: 5, joy: 5 });
+      var item = el("div", { class: "log-item" });
+      var head = el("div", { class: "row" });
+      head.appendChild(el("b", null, (i + 1) + ". " + p.name));
+      head.appendChild(el("span", { class: "badge" }, p.cat + " · " + (p.when || "언제든")));
+      item.appendChild(head);
+      if (p.name === "호흡 5분") item.appendChild(breathTimer());
+      var seg = el("div", { class: "seg", role: "group", "aria-label": p.name + " 했는지" });
+      [["yes", "했다"], ["part", "일부 했다"], ["no", "못 했다"]].forEach(function (o) {
+        seg.appendChild(el("button", { class: "chip" + (L.done === o[0] ? " on" : ""), "aria-pressed": L.done === o[0] ? "true" : "false", onclick: function () { L.done = o[0]; save(); renderLog(); } }, o[1]));
+      });
+      item.appendChild(seg);
+      if (L.done === "yes" || L.done === "part") {
+        item.appendChild(slider("성취감", L, "ach", p.name));
+        item.appendChild(slider("즐거움", L, "joy", p.name));
+      } else if (L.done === "no") {
+        item.appendChild(el("p", { class: "note" }, "괜찮습니다. 내일은 이 활동을 더 작게 쪼개 보세요. 예: '책상 정리' → '펜 세 자루 꽂기'."));
+      }
+      card.appendChild(item);
+    });
+    var after = el("div", { class: "log-item" });
+    after.appendChild(el("b", null, "지금 기분"));
+    var holder = { v: clampInt(d.moodAfter, 0, 10, clampInt(d.moodBefore, 0, 10, 5)) };
+    var s = slider("지금 기분 (0–10)", holder, "v", "하고 난 뒤 기분", function (v) { d.moodAfter = v; });
+    after.appendChild(s);
+    var saveBtn = el("button", { class: "btn", onclick: function () {
+      var any = d.log.some(function (x) { return x && x.done; });
+      if (!any) return say("logMsg", "적어도 하나는 '했다 / 일부 했다 / 못 했다' 중 하나를 골라 주세요.", "err");
+      d.moodAfter = holder.v; d.saved = true; delete d.example; save(); renderReview(); renderBanners();
+      var diff = d.moodAfter - clampInt(d.moodBefore, 0, 10, 5);
+      say("logMsg", "오늘 기록을 저장했습니다. 기분 " + clampInt(d.moodBefore, 0, 10, 5) + " → " + d.moodAfter + " (" + (diff > 0 ? "+" : "") + diff + "). 아래 '돌아보기'에 반영됐습니다.", "ok");
+    } }, "오늘 기록 저장");
+    var row = el("div", { class: "row" }); row.style.marginTop = "10px"; row.appendChild(saveBtn);
+    after.appendChild(row);
+    after.appendChild(el("p", { class: "msg", id: "logMsg", role: "status" }));
+    card.appendChild(after);
+    renderBanners();
+  }
+  function slider(label, obj, key, ctx, onSet) {
+    var id = "s" + Math.random().toString(36).slice(2, 8);
+    var v = clampInt(obj[key], 0, 10, 5); obj[key] = v;
+    var wrap = el("div", { class: "slider" });
+    wrap.appendChild(el("label", { for: id }, label));
+    var r = el("input", { type: "range", id: id, min: "0", max: "10", step: "1", "aria-label": ctx + " " + label });
+    r.value = v;
+    var out = el("output", { for: id }, String(v));
+    r.addEventListener("input", function () { var n = clampInt(r.value, 0, 10, 5); obj[key] = n; out.textContent = n; if (onSet) onSet(n); save(); });
+    wrap.appendChild(r); wrap.appendChild(out);
+    return wrap;
+  }
+  function breathTimer() {
+    var box = el("div", { class: "row" }); box.style.margin = "6px 0";
+    var t = el("span", { class: "timer" }, "05:00");
+    var b = el("button", { class: "btn ghost small" }, "호흡 5분 시작");
+    var left = 300;
+    b.addEventListener("click", function () {
+      if (timerId) { clearInterval(timerId); timerId = null; b.textContent = "다시 시작"; return; }
+      left = 300; b.textContent = "멈추기";
+      timerId = setInterval(function () {
+        left--; t.textContent = pad(Math.floor(left / 60)) + ":" + pad(left % 60);
+        if (left <= 0) { clearInterval(timerId); timerId = null; t.textContent = "끝! 숨 한 번 더 고르고 '했다'를 누르세요."; b.textContent = "다시 시작"; }
+      }, 1000);
+    });
+    box.appendChild(b); box.appendChild(t);
+    box.appendChild(el("span", { class: "note" }, "들숨 4초 · 날숨 6초"));
+    return box;
+  }
+
+  // 활동별 통계: 한 날(했다·일부)의 평균 성취·즐거움, 그날 기분 변화
+  function activityStats() {
+    var m = {};
+    Object.keys(state.days).forEach(function (k) {
+      var d = state.days[k];
+      if (!d || !Array.isArray(d.plan) || !Array.isArray(d.log) || !d.saved) return;
+      var gain = clampInt(d.moodAfter, 0, 10, NaN) - clampInt(d.moodBefore, 0, 10, NaN);
+      d.plan.forEach(function (p, i) {
+        if (!p || typeof p.name !== "string") return;
+        var L = d.log[i]; if (!L) return;
+        var s = m[p.name] || (m[p.name] = { name: p.name, n: 0, miss: 0, ach: 0, joy: 0, gain: 0, gn: 0 });
+        if (L.done === "yes" || L.done === "part") {
+          s.n++; s.ach += clampInt(L.ach, 0, 10, 5); s.joy += clampInt(L.joy, 0, 10, 5);
+          if (isFinite(gain)) { s.gain += gain; s.gn++; }
+        } else if (L.done === "no") s.miss++;
+      });
+    });
+    return Object.keys(m).map(function (k) {
+      var s = m[k];
+      return { name: s.name, n: s.n, miss: s.miss, ach: s.n ? s.ach / s.n : 0, joy: s.n ? s.joy / s.n : 0, moodGain: s.gn ? s.gain / s.gn : 0 };
+    }).sort(function (a, b) { return b.moodGain - a.moodGain || b.n - a.n; });
+  }
+  function renderReview() {
+    var box = $("review"); box.textContent = "";
+    var keys = Object.keys(state.days).filter(function (k) { var d = state.days[k]; return d && d.saved; }).sort();
+    if (!keys.length) {
+      box.appendChild(el("p", { class: "note" }, "저장한 기록이 아직 없습니다. 오늘 기록을 저장하거나, 아래 '예시 기록 7일 넣어 보기'로 어떻게 보이는지 확인해 보세요."));
+      return;
+    }
+    var gains = keys.map(function (k) { var d = state.days[k]; return clampInt(d.moodAfter, 0, 10, 5) - clampInt(d.moodBefore, 0, 10, 5); });
+    var avg = gains.reduce(function (a, b) { return a + b; }, 0) / gains.length;
+    box.appendChild(el("p", null, "기록한 날 " + keys.length + "일 (" + keys[0] + " ~ " + keys[keys.length - 1] + ") · 활동 전후 기분 변화 평균 " + (avg > 0 ? "+" : "") + avg.toFixed(1) + "점"));
+    var stats = activityStats();
+    var top = stats.filter(function (s) { return s.n >= 1; }).slice(0, 5);
+    if (top.length) {
+      box.appendChild(el("b", null, "한 날 기분이 많이 오른 활동"));
+      var bars = el("div", { class: "bars" });
+      var maxG = Math.max.apply(null, top.map(function (s) { return Math.abs(s.moodGain); }).concat([1]));
+      top.forEach(function (s) {
+        var row = el("div", { class: "bar" });
+        row.appendChild(el("span", null, s.name));
+        var tr = el("div", { class: "track" }); var f = el("div", { class: "fill" });
+        f.style.width = Math.max(2, Math.round(Math.max(0, s.moodGain) / maxG * 100)) + "%"; tr.appendChild(f);
+        row.appendChild(tr);
+        row.appendChild(el("span", null, (s.moodGain > 0 ? "+" : "") + s.moodGain.toFixed(1)));
+        bars.appendChild(row);
+      });
+      box.appendChild(bars);
+      box.appendChild(el("p", { class: "note" }, "막대 = 그 활동을 한 날 기분이 평균 몇 점 올랐는지. 두 번 이상 해서 기분이 오른 활동은 ① 정하기에서 ★로 표시됩니다."));
+    }
+    var missed = stats.filter(function (s) { return s.miss >= 2; });
+    if (missed.length) {
+      box.appendChild(el("b", null, "두 번 이상 못 한 활동 → 더 작게 쪼개 보기"));
+      var ul = el("ul");
+      missed.forEach(function (s) { ul.appendChild(el("li", null, s.name + " (못 함 " + s.miss + "번)")); });
+      box.appendChild(ul);
+    }
+    var next = bestActivities();
+    box.appendChild(el("p", { class: "verdict good" }, next.length ? "내일 세 칸 추천: " + next.join(", ") + " — 내 기록에서 기분이 오른 활동부터 다시 넣어 보세요." : "아직 두 번 이상 기록된 활동이 없습니다. 며칠 더 적으면 내일 할 활동을 추천해 드립니다."));
+  }
+
+  // 예시 기록 (지어낸 것)
+  function loadExample() {
+    var ex = [
+      [["밖에서 10분 걷기", "즐거움", "yes", 5, 7], ["과제 카드 하나 끝내기", "성취", "yes", 8, 4], ["호흡 5분", "마음챙김", "yes", 5, 5], 3, 5],
+      [["책상 위 한 칸 정리하기", "성취", "no", 5, 5], ["좋아하는 노래 세 곡 듣기", "즐거움", "yes", 3, 8], ["고마운 사람에게 한 줄 보내기", "사람", "yes", 6, 7], 4, 5],
+      [["밖에서 10분 걷기", "즐거움", "yes", 6, 7], ["호흡 5분", "마음챙김", "part", 4, 4], ["미뤄 둔 메시지 하나 답하기", "성취", "yes", 7, 3], 3, 5],
+      [["책상 위 한 칸 정리하기", "성취", "no", 5, 5], ["물 한 컵 마시고 5분 스트레칭", "몸", "yes", 5, 5], ["좋아하는 노래 세 곡 듣기", "즐거움", "yes", 3, 7], 5, 6],
+      [["과제 카드 하나 끝내기", "성취", "yes", 9, 5], ["밖에서 10분 걷기", "즐거움", "yes", 6, 8], ["동료에게 장점 하나 말하기", "사람", "yes", 6, 8], 4, 7],
+      [["호흡 5분", "마음챙김", "yes", 5, 6], ["정한 시간에 잠자리에 들기", "몸", "no", 5, 5], ["고마운 사람에게 한 줄 보내기", "사람", "yes", 6, 8], 4, 5],
+      [["밖에서 10분 걷기", "즐거움", "yes", 6, 8], ["과제 카드 하나 끝내기", "성취", "part", 7, 4], ["물 한 컵 마시고 5분 스트레칭", "몸", "yes", 5, 6], 5, 7]
+    ];
+    var base = new Date(); base.setHours(12, 0, 0, 0);
+    var added = 0;
+    ex.forEach(function (day, i) {
+      var dt = new Date(base); dt.setDate(base.getDate() - (ex.length - i));
+      var k = dateKey(dt);
+      if (state.days[k] && state.days[k].saved && !state.days[k].example) return; // 내 기록은 덮지 않음
+      var acts = day.slice(0, 3);
+      state.days[k] = {
+        example: true, saved: true, moodBefore: day[3], moodAfter: day[4],
+        plan: acts.map(function (a) { return { name: a[0], cat: a[1], when: "언제든" }; }),
+        log: acts.map(function (a) { return { done: a[2], ach: a[3], joy: a[4] }; })
+      };
+      added++;
+    });
+    save(); renderReview(); renderBanners();
+    say("dataMsg", added ? "지어낸 예시 기록 " + added + "일을 넣었습니다. 지난 7일 날짜에 들어가며, 내가 저장한 날은 덮지 않습니다." : "지난 7일이 모두 내 기록이라 예시를 넣지 않았습니다.", "ok");
+  }
+  function removeExample() {
+    Object.keys(state.days).forEach(function (k) { if (state.days[k] && state.days[k].example) delete state.days[k]; });
+    save(); renderReview(); renderBanners(); if (!$("p1").hidden) renderPlan();
+    say("dataMsg", "예시 기록을 지웠습니다.", "ok");
+  }
+  $("loadExample").addEventListener("click", loadExample);
+  $("clearAll").addEventListener("click", function () {
+    var b = this;
+    if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "한 번 더 누르면 모두 지웁니다"; setTimeout(function () { b.dataset.armed = ""; b.textContent = "내 기록 모두 지우기"; }, 4000); return; }
+    state = { days: {} }; save(); b.dataset.armed = ""; b.textContent = "내 기록 모두 지우기";
+    renderLog(); renderReview(); say("dataMsg", "이 브라우저의 기록을 모두 지웠습니다.", "ok");
+  });
+
+  // ---------- ③ 숫자 따져 보기 ----------
+  var CALC_EX = [
+    { label: "예시 글 A: \"명상 8주로 우울이 확 줄었다\"", g: "2.4", c: "wl", n: "39" },
+    { label: "예시 글 B: 활동 계획 앱 시험", g: "0.7", c: "cau", n: "180" },
+    { label: "예시 글 C: 숫자만 있는 광고", g: "1.3", c: "unknown", n: "" }
+  ];
+  var exBox = $("calcExamples");
+  CALC_EX.forEach(function (e) {
+    exBox.appendChild(el("button", { class: "chip", onclick: function () { $("gIn").value = e.g; $("ctlIn").value = e.c; $("nIn").value = e.n; runCalc(); } }, e.label));
+  });
+  function parseNum(s) {
+    s = String(s == null ? "" : s).trim().replace(/[，,]/g, ".").replace(/\s+/g, "");
+    if (!s) return { empty: true };
+    if (!/^[-+−]?\d*\.?\d+$/.test(s)) return { bad: true };
+    var v = Number(s.replace("−", "-"));
+    return isFinite(v) ? { v: v } : { bad: true };
+  }
+  function runCalc() {
+    var out = $("calcOut"); out.textContent = ""; say("calcMsg", "", "err");
+    var gp = parseNum($("gIn").value), np = parseNum($("nIn").value), ctl = $("ctlIn").value;
+    var errs = [];
+    if (gp.empty) errs.push("효과크기를 적어 주세요 (예: 0.8).");
+    else if (gp.bad) errs.push("효과크기는 숫자로만 적어 주세요. '0.8', '1.2'처럼요. (지금: '" + cleanName($("gIn").value).slice(0, 20) + "')");
+    else if (gp.v < -3 || gp.v > 10) errs.push("효과크기 " + gp.v + "은(는) 보통 나올 수 없는 값입니다. -3에서 10 사이로 적어 주세요. 퍼센트(%)를 적은 것은 아닌지 확인해 보세요.");
+    if (!ctl) errs.push("무엇과 비교했는지 골라 주세요. 모르면 '모르겠다'를 고르면 됩니다.");
+    var n = null;
+    if (!np.empty) {
+      if (np.bad) errs.push("참여자 수는 숫자로만 적어 주세요. 모르면 비워 두세요.");
+      else if (np.v < 2 || np.v > 1000000 || Math.round(np.v) !== np.v) errs.push("참여자 수는 2 이상 자연수로 적어 주세요.");
+      else n = np.v;
+    }
+    if (errs.length) { say("calcMsg", errs.join(" "), "err"); return; }
+    var g = gp.v;
+    var ref = PAPER[ctl] || PAPER.cau;
+    var flags = [];
+    var level = "good";
+    if (g > PAPER.outlierG) { flags.push("g > 2입니다. 논문에서는 이런 값 6개를 '극단값'으로 따로 보았고, 그중 5개가 대기자 비교였습니다. 극단값을 빼면 대기자와 평소 치료의 차이가 0.36에서 0.11로 줄었습니다."); level = "bad"; }
+    if (ctl === "wl") { flags.push("대기자와 비교한 숫자입니다. 논문에서 대기자 비교는 평균 g = 1.04로, 평소 치료 비교(0.68)보다 0.36 크게 나왔습니다. 기다리기만 한 집단과 견주면 효과가 커 보이기 쉽습니다."); if (level === "good") level = "warn"; }
+    if (ctl === "unknown") { flags.push("무엇과 비교했는지 모르면 숫자를 믿기 어렵습니다. 논문에서는 비교 대상에 따라 같은 방법의 효과가 0.61에서 1.04까지 달랐습니다. 글에서 '대조군'이나 '비교 집단'을 먼저 찾아보세요."); if (level === "good") level = "warn"; }
+    if (n != null && n < PAPER.smallN) { flags.push("참여자 " + n + "명은 작은 연구입니다(논문의 평소 치료 시험 중앙값 60명보다 적음). 논문에서 작은 연구일수록 효과가 크게 나오는 경향이 뚜렷했습니다(Egger 검정 p < 0.001)."); if (level === "good") level = "warn"; }
+    if (n == null) flags.push("참여자 수가 없어 연구 크기는 따지지 못했습니다.");
+    if (g > ref.hi && level === "good") { flags.push("논문에서 같은 비교 대상(" + ref.label + ")의 95% 신뢰구간 위쪽(" + ref.hi.toFixed(2) + ")보다 큽니다."); level = "warn"; }
+    if (g < 0) flags.push("음수는 방법을 쓴 쪽이 오히려 나빴다는 뜻입니다.");
+    else if (g < 0.2) flags.push("0.2보다 작으면 효과가 거의 없다고 보는 경우가 많습니다.");
+
+    var title = level === "bad" ? "부풀려졌을 가능성이 큽니다" : level === "warn" ? "조심해서 읽을 숫자입니다" : (g >= ref.lo && g <= ref.hi ? "논문 결과와 비슷한, 현실적인 숫자입니다" : (g < ref.lo ? "논문 결과보다 작은 숫자입니다" : "현실적인 범위로 보입니다"));
+    var v = el("div", { class: "verdict " + level });
+    v.appendChild(el("b", null, title));
+    v.appendChild(el("span", null, "현실적인 기대치: 평소 치료와 비교한 g ≈ 0.68 (95% CI 0.54–0.81). 작은 연구 영향을 생각하면 실제로는 이보다 조금 작을 수 있습니다."));
+    var ul = el("ul"); flags.forEach(function (f) { ul.appendChild(el("li", null, f)); }); v.appendChild(ul);
+    out.appendChild(v);
+
+    var c = el("div", { class: "card" });
+    c.appendChild(el("b", null, "무작위로 한 사람씩 뽑아 견주면, 방법을 쓴 쪽이 더 나을 확률"));
+    var bars = el("div", { class: "bars" });
+    [[ "입력한 숫자 (g " + g + ")", Math.max(0, Math.min(100, cles(g))), true ], [ "논문: 평소 치료 대비 (0.68)", cles(PAPER.cau.g), false ], [ "논문: 대기자 대비 (1.04)", cles(PAPER.wl.g), false ], [ "효과 없음 (0)", 50, false ]].forEach(function (r) {
+      var row = el("div", { class: "bar" });
+      row.appendChild(el("span", null, r[0]));
+      var tr = el("div", { class: "track" }); var f = el("div", { class: "fill" + (r[2] ? " you" : "") }); f.style.width = r[1] + "%"; tr.appendChild(f);
+      row.appendChild(tr); row.appendChild(el("span", null, r[1] + "%"));
+      bars.appendChild(row);
+    });
+    c.appendChild(bars);
+    c.appendChild(el("p", { class: "note" }, "50%는 쓰나 안 쓰나 같다는 뜻입니다. 논문 결과대로라면 100번 견줄 때 약 " + cles(PAPER.cau.g) + "번 방법을 쓴 쪽이 덜 우울했습니다. 기적은 아니지만 해 볼 만한 크기입니다."));
+    out.appendChild(c);
+  }
+  $("calc").addEventListener("click", runCalc);
+  ["gIn", "nIn"].forEach(function (id) { $(id).addEventListener("keydown", function (e) { if (e.key === "Enter") runCalc(); }); });
+
+  // ---------- 시작 ----------
+  var startTab = 0;
+  try { startTab = clampInt(localStorage.getItem(KEY + ".tab"), 0, 2, 0); } catch (e) {}
+  show(startTab);
+  window.addEventListener("error", function () { say("planMsg", "잠깐 문제가 생겼습니다. 새로고침하면 이어서 쓸 수 있습니다.", "err"); });
+})();
+</script>
+</body>
+</html>
