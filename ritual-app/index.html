@@ -77,6 +77,13 @@ th,td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left;vertic
 .table-wrap{overflow-x:auto}
 small,.note{color:var(--muted);font-size:13px}
 footer{border-top:1px solid var(--line);padding:20px 0 0;font-size:13px;color:var(--muted)}
+.how{margin:0 0 6px;display:flex;align-items:center;gap:8px}
+.num-badge{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--accent);color:var(--accentfg)}
+.custom-card{border:2px dashed var(--accent)}
+.field-label{display:flex;justify-content:space-between;font-weight:600;font-size:14px;margin:0 0 6px}
+.chip.ex{border-style:dashed}
+ol.plan li.slot{color:var(--muted)}
+ol.plan li.slot .name{font-weight:400}
 .timer{font-variant-numeric:tabular-nums;font-weight:700}
 </style>
 </head>
@@ -105,14 +112,22 @@ footer{border-top:1px solid var(--line);padding:20px 0 0;font-size:13px;color:va
   <h2>① 오늘 할 작은 활동 세 개 정하기</h2>
   <p class="lead">행동활성화는 기분이 나아지기를 기다리지 않고, 작은 활동을 먼저 정해 해 보는 방법입니다. 5–15분이면 끝나는 것으로 고르세요. 즐거움·성취·사람·몸·마음챙김에서 고루 고르면 좋습니다. <span class="badge">★ = 내 기록에서 기분이 가장 오른 활동</span></p>
   <div class="card">
+    <h3 class="how"><span class="num-badge">방법 1</span> 목록에서 누르기</h3>
+    <p class="note" style="margin:0">마음에 드는 활동을 누르면 아래 '오늘의 세 칸'에 들어갑니다. 한 번 더 누르면 빠집니다. 목록에 없으면 <a href="#custom">방법 2에서 직접 적을 수 있습니다</a>.</p>
     <div id="presets"></div>
-    <span class="cat">직접 적기 (30자 이내)</span>
-    <div class="row">
-      <input type="text" id="custom" maxlength="60" placeholder="예: 창문 열고 환기하기" aria-label="직접 적을 활동">
-      <button class="btn small" id="addCustom">넣기</button>
-    </div>
-    <p class="msg" id="planMsg" role="status"></p>
   </div>
+  <div class="card custom-card">
+    <h3 class="how"><span class="num-badge">방법 2</span> 목록에 없으면 내가 직접 적기</h3>
+    <p class="note" style="margin:0 0 10px">하고 싶은 활동을 짧게 적고 <b>＋ 넣기</b>를 누르세요. 5–15분이면 끝나는 크기가 좋습니다.</p>
+    <label for="custom" class="field-label">내 활동 이름 <span class="note" id="customCount">0/30자</span></label>
+    <div class="row">
+      <input type="text" id="custom" maxlength="60" placeholder="예: 창문 열고 환기하기" autocomplete="off">
+      <button class="btn" id="addCustom">＋ 넣기</button>
+    </div>
+    <span class="cat">이런 식으로 적으면 됩니다 (누르면 칸에 채워짐)</span>
+    <div class="chips" id="customExamples"></div>
+  </div>
+  <p class="msg" id="planMsg" role="status"></p>
   <div class="card">
     <h3 style="margin-top:0">오늘의 세 칸 <span class="note" id="planDate"></span></h3>
     <ol class="plan" id="planList"></ol>
@@ -315,7 +330,12 @@ footer{border-top:1px solid var(--line);padding:20px 0 0;font-size:13px;color:va
       li.appendChild(el("button", { class: "btn ghost small", "aria-label": p.name + " 빼기", onclick: function () { d.plan.splice(i, 1); d.log.splice(i, 1); save(); renderPlan(); say("planMsg", ""); } }, "빼기"));
       list.appendChild(li);
     });
-    $("planEmpty").hidden = d.plan.length > 0;
+    for (var e = d.plan.length; e < MAX_PLAN; e++) {
+      var empty = el("li", { class: "slot" });
+      empty.appendChild(el("span", { class: "name" }, "비어 있음 — 방법 1에서 누르거나 방법 2에 직접 적어 넣으세요"));
+      list.appendChild(empty);
+    }
+    $("planEmpty").hidden = true;
     $("planDate").textContent = todayKey();
     var mb = clampInt(d.moodBefore, 0, 10, 5);
     $("moodBefore").value = mb; $("moodBeforeOut").textContent = mb;
@@ -338,7 +358,12 @@ footer{border-top:1px solid var(--line);padding:20px 0 0;font-size:13px;color:va
     save(); renderPlan();
     say("planMsg", "'" + name + "'을(를) 넣었습니다. (" + d.plan.length + "/3)", "ok");
   }
-  $("addCustom").addEventListener("click", function () { addPlan($("custom").value, "직접"); if ($("planMsg").className.indexOf("ok") >= 0) $("custom").value = ""; });
+  $("addCustom").addEventListener("click", function () { addPlan($("custom").value, "직접"); if ($("planMsg").className.indexOf("ok") >= 0) { $("custom").value = ""; updateCount(); } });
+  function updateCount() { var n = cleanName($("custom").value).length; var c = $("customCount"); c.textContent = n + "/30자"; c.style.color = n > MAX_LEN ? "var(--bad)" : ""; }
+  $("custom").addEventListener("input", updateCount);
+  ["창문 열고 환기하기", "컵 하나만 설거지하기", "좋아하는 사진 한 장 보기"].forEach(function (t) {
+    $("customExamples").appendChild(el("button", { class: "chip ex", onclick: function () { $("custom").value = t; updateCount(); $("custom").focus(); say("planMsg", "칸에 채웠습니다. 고쳐 써도 되고, ＋ 넣기를 누르면 들어갑니다.", "ok"); } }, t));
+  });
   $("custom").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("addCustom").click(); } });
   $("moodBefore").addEventListener("input", function () { var v = clampInt(this.value, 0, 10, 5); $("moodBeforeOut").textContent = v; today().moodBefore = v; save(); });
   $("toLog").addEventListener("click", function () {
